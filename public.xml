@@ -1,0 +1,112 @@
+<!--
+    NOTICE:
+
+    This context is usually accessed via the external sip profile listening on port 5080.
+    
+    It is recommended to have separate inbound and outbound contexts.  Not only for security
+    but clearing up why you would need to do such a thing.  You don't want outside un-authenticated
+    callers hitting your default context which allows dialing calls thru your providers and results 
+    in Toll Fraud.
+-->
+
+<!-- http://wiki.freeswitch.org/wiki/Dialplan_XML -->
+<include>
+  <context name="public">
+
+    <extension name="GATE">
+      <condition field="caller_id_number" expression="^2568371362$">
+        <action application="answer"/>
+        <action application="sleep" data="1000"/>
+        <action application="send_dtmf" data="9"/>
+        <action application="hangup" data="USER_BUSY"/>
+      </condition>
+    </extension>
+    
+    <extension name="IPKALL">
+      <condition field="destination_number" expression="^5001$">
+      <!-- <action application="set" data="domain_name="/> -->
+        <action application="transfer" data="1001 XML default"/>
+      </condition>
+    </extension>
+
+    <extension name="unloop">
+      <condition field="${unroll_loops}" expression="^true$"/>
+      <condition field="${sip_looped_call}" expression="^true$">
+	<action application="deflect" data="${destination_number}"/>
+      </condition>
+    </extension>
+    <!--
+	Tag anything pass thru here as an outside_call so you can make sure not
+	to create any routing loops based on the conditions that it came from 
+	the outside of the switch.  
+    -->
+    <extension name="outside_call" continue="true">
+      <condition>
+	<action application="set" data="outside_call=true"/>
+	<action application="export" data="RFC2822_DATE=${strftime(%a, %d %b %Y %T %z)}"/>
+      </condition>
+    </extension>
+
+    <!-- voicemail main extension -->
+    <extension name="vmain">
+      <condition field="destination_number" expression="^vmain$|^4000$|^\*98$">
+         <action application="answer"/>
+         <action application="sleep" data="1000"/>
+         <action application="voicemail" data="check default ${domain_name}"/>
+      </condition>
+    </extension>
+
+    <extension name="call_debug" continue="true">
+      <condition field="${call_debug}" expression="^true$" break="never">
+	<action application="info"/>
+      </condition>
+    </extension>
+
+    <extension name="public_extensions">
+      <condition field="destination_number" expression="^(10[01][0-9])$">
+	<action application="transfer" data="$1 XML default"/>
+      </condition>
+    </extension>
+
+    <!--
+      start a dynamic conference with the settings of the "default" conference profile in conference.conf.xml
+    -->                                                                                                         
+    <extension name="nb_conferences">
+      <condition field="destination_number" expression="^(30\d{2})$">
+         <action application="answer"/>
+         <action application="conference" data="$1-${domain_name}@default"/>
+      </condition>
+    </extension>
+
+    <!-- a sample IVR  -->
+    <extension name="ivr_demo">
+      <condition field="destination_number" expression="^5000$">
+         <action application="answer"/>
+         <action application="sleep" data="2000"/>
+         <action application="ivr" data="demo_ivr"/>
+      </condition>
+    </extension> 
+   
+    <!--
+	You can place files in the public directory to get included.
+    -->
+    <X-PRE-PROCESS cmd="include" data="public/*.xml"/>
+    <!--
+	If you have made it this far lets challenge the caller and if they authenticate
+	lets try what they dialed in the default context. (commented out by default)
+    -->
+    <!--
+    <extension name="check_auth" continue="true">
+      <condition field="${sip_authorized}" expression="^true$" break="never">
+	<anti-action application="respond" data="407"/>
+      </condition>
+    </extension>
+    
+    <extension name="transfer_to_default">
+      <condition>
+	<action application="transfer" data="${destination_number} XML default"/>
+      </condition>
+    </extension>
+    -->
+  </context>
+</include>
