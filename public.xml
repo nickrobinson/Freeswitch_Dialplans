@@ -17,7 +17,7 @@
       <condition field="caller_id_number" expression="^2568371362$">
         <action application="answer"/>
         <action application="sleep" data="1000"/>
-        <action application="send_dtmf" data="9"/>
+        <action application="send_dtmf" data="9@2000"/>
         <action application="hangup" data="USER_BUSY"/>
       </condition>
     </extension>
